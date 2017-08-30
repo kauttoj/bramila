@@ -22,6 +22,14 @@ function [fwd,rms]=bramila_framewiseDisplacement(cfg)
 
     temp_cfg=[];
     ts = load(cfg.motionparam);
+    
+    if(isfield(cfg,'max_volumes'))
+        if not(isempty(cfg.max_volumes)) && size(ts,1)>cfg.max_volumes    
+            warning('Cutting number of timepoints from %i to %i as requested in CFG file!',size(ts,1),cfg.max_volumes);
+            ts = ts(1:cfg.max_volumes,:);
+        end
+    end           
+    
     temp_cfg.vol=double(ts);
     temp_cfg.write=0;
     temp_cfg.detrend_type='linear-demean';

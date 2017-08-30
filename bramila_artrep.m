@@ -57,6 +57,13 @@ end
 
 motion_params = load(cfg.motionparam);
 
+if(isfield(cfg,'max_volumes'))
+    if not(isempty(cfg.max_volumes)) && size(motion_params,1)>cfg.max_volumes
+        warning('Cutting number of timepoints from %i to %i as requested in CFG file!',size(motion_params,1),cfg.max_volumes);
+        motion_params = motion_params(1:cfg.max_volumes,:);
+    end
+end
+
 prepro_suite='fsl-fs';
 if ~isfield(cfg,'prepro_suite')
     cfg.prepro_suite = prepro_suite;

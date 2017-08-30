@@ -5,10 +5,10 @@ addpath(genpath('/m/nbe/scratch/braindata/shared/TouchHyperScan/spm12/spm12b'));
 dataroot = '/m/nbe/scratch/braindata/shared/GraspHyperScan';
 % outdirname is the folder where 1st level results were saved (see bramila_glminit.m)
 outdirname = {
-'1stlevel';
+    '1stlevel';
 };
 % Where to save the 2nd level models
-resultsfolder = 'Observers';
+resultsfolder = 'D:\WORK\Laurea\fMRI_data2_palkka\fDPA_processed\Analysis\GLM\level2';
 % Subject list
 subjects = {
 'Fanny_Observer';
@@ -51,7 +51,7 @@ contrastnr = {'con_0001.nii','con_0002.nii','con_0003.nii','con_0004.nii','con_0
 %% Execute
 for a = 1:length(contrastnames)
     contrasts = contrastnames{a};   
-    for cons = 1:length(contrasts);
+    for cons = 1:length(contrasts)
         % specify analysis directory
         matlabbatch{2}.spm.stats.fmri_est.spmmat = {sprintf('%s/%s/%s/SPM.mat',dataroot,resultsfolder,contrasts{cons})};
         anadir = fullfile(dataroot,resultsfolder,contrasts{cons});

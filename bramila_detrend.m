@@ -22,8 +22,6 @@ if(isfield(cfg,'detrend_type'))
     type=cfg.detrend_type;
 end
 
-
-
 % resize the data into a 2-dim matrix, time in first dimension
 kk=size(data);
 if(length(kk)==4)
@@ -34,6 +32,20 @@ if(length(kk)==4)
 else
     T=kk(1);
     tempdata=data;
+end
+clear data;
+
+if(isfield(cfg,'max_volumes'))
+    if not(isempty(cfg.max_volumes)) && T>cfg.max_volumes
+        warning('Cutting number of volumes from %i to %i as requested in CFG file!',T,cfg.max_volumes);
+        tempdata = tempdata(1:cfg.max_volumes,:);
+        T = cfg.max_volumes;
+        if(length(kk)==4)
+            kk(4)=T;
+        else
+            kk(1)=T;
+        end        
+    end    
 end
 
 m=mean(tempdata,1);

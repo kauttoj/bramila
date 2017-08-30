@@ -2,6 +2,13 @@ function reg_cfg = bramila_makemotionregress(cfg)
 
     X_motion = load(cfg.motionparam);
     
+    if(isfield(cfg,'max_volumes'))
+        if not(isempty(cfg.max_volumes)) && size(X_motion,1)>cfg.max_volumes    
+            warning('Cutting number of timepoints from %i to %i as requested in CFG file!',size(X_motion,1),cfg.max_volumes);
+            X_motion = X_motion(1:cfg.max_volumes,:);
+        end
+    end    
+    
     labels = {'X','Y','Z','pitch','yaw','roll'};
 
 	prepro_suite='fsl-fs'; 

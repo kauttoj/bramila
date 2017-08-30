@@ -1,10 +1,14 @@
-function bramila_glm1st(subject,dataroot,outdirname)
-addpath(genpath('/m/nbe/scratch/braindata/shared/TouchHyperScan/spm12/spm12b'));
-addpath(genpath('/m/nbe/scratch/braindata/shared/toolboxes/bramila/bramila'));
+function bramila_glm1st(file,outputdir)
+
+HOME = pwd;
+DELETE_TEMP_FILES = 1; % only useful if splitting
+NEED_TO_SPLIT = 0; % 1 for spm8
+
 % load cfg and unpack parameters
-load(sprintf('%s/%s/%s.mat',dataroot,subject,outdirname),'cfg');
+load(file,'cfg');
+
 TR = cfg.TR;
-sesses = cfg.sesses;
+sesses = cfg.sessions;
 hpf = cfg.hpf;
 incmoves = cfg.incmoves;
 inputfile = cfg.inputfile;
@@ -18,33 +22,60 @@ if ~isfield(cfg,'AR'), cfg.AR = 'none'; end
 AR = cfg.AR;
 
 % where would analysis result go
-outputdir = fullfile(dataroot,subject,outdirname);
-mkdir(outputdir);
+%outputdir = fullfile(dataroot,subject,outdirname);
+if ~exist(outputdir,'dir')
+    mkdir(outputdir);
+end
 %number of blocks
-nsess = length(sesses);
+nsess = cfg.sessions;
 %condition names
 ncond = length(cnames);
 % folder where the fun happens
 for sess = 1:nsess
-    sessdata = fullfile(dataroot,subject,sesses{sess});
+    
+    [inputfile_path,inputfile1,ext] = fileparts(cfg.inputfile{sess});    
+    
+    inputfile = [inputfile1,ext];    
 %     %% Split 4D volume into 3D volumes. When file is larger than 2.1gb, you have to split it
 %     % assuming sessdata is folder with preprocessed data for given run/session
 %     % assuming inputfile is epi.nii
-%     if exist(fullfile(sessdata,'split'),'dir') ~= 7 || length(dir(fullfile(sessdata,'split')))==2% if folder does not exist or is empty
-%         mkdir(fullfile(sessdata,'split'));
-%         spm_file_split(fullfile(sessdata,inputfile),fullfile(sessdata,'split'));
-%     end
-%     %% List files
-%     clear files
-%     clear ffiles
-%     files = spm_select('List',fullfile(sessdata,'split'),'^*\.nii$');
-%     for f = 1:length(files)
-%         ffiles{f,1} = [fullfile(sessdata,'split',files(f,:)),',1'];
-%     end
+    ffiles = [];
+
+    if NEED_TO_SPLIT               
+        fprintf('Splitting 4D file... ')
+        
+        tempfolder = [inputfile_path,filesep,inputfile1,'_SPLIT'];        
+        do_split = 1;
+        if ~exist(tempfolder,'dir')
+           mkdir(tempfolder); 
+        else
+            d = dir([tempfolder,filesep,'*.nii']);
+            if ~isempty(d)
+                do_split = 0;
+                warning('Temp split folder not empty (%i files), skipping split operation\n',length(d));
+            end
+        end
+        assert(exist([inputfile_path,filesep,inputfile],'file')>0)
+        if do_split
+            spm_file_split([inputfile_path,filesep,inputfile],tempfolder);
+            fprintf('done!\n')
+        end
+                
+        files = spm_select('List',tempfolder,'.nii$');
+        for f = 1:length(files)
+            ffiles{f,1} = [fullfile(tempfolder,files(f,:)),',1'];
+        end                
+    else
+        [ffiles,~] = spm_select('ExtFPList',inputfile_path,inputfile,Inf);
+    end
+    
+    %% List files
+
 %     % Throw them into the batch
 %     matlabbatch{1}.spm.stats.fmri_spec.sess(sess).scans = ffiles;
     %% SPM12 seems to work just fine
-    [ffiles,~] = spm_select('ExtFPList',sessdata,inputfile,Inf);
+    %    
+    assert(~isempty(ffiles))
     % Throw them into the batch
     matlabbatch{1}.spm.stats.fmri_spec.sess(sess).scans = cellstr(ffiles);        
     %% Regressors
@@ -96,11 +127,11 @@ matlabbatch{1}.spm.stats.fmri_spec.fact = struct('name', {}, 'levels', {});
 matlabbatch{1}.spm.stats.fmri_spec.bases.hrf.derivs = [0 0];
 matlabbatch{1}.spm.stats.fmri_spec.volt = 1;
 matlabbatch{1}.spm.stats.fmri_spec.global = 'None';
-matlabbatch{1}.spm.stats.fmri_spec.mthresh = 0;
-matlabbatch{1}.spm.stats.fmri_spec.mask = {'/m/nbe/scratch/braindata/shared/toolboxes/bramila/bramila/external/MNI152_T1_2mm_brain_mask.nii,1'};
+matlabbatch{1}.spm.stats.fmri_spec.mthresh = 0.25;
+matlabbatch{1}.spm.stats.fmri_spec.mask = {[cfg.mask,',1']};
 matlabbatch{1}.spm.stats.fmri_spec.cvi = AR;
 %% Model estimation barch
-matlabbatch{2}.spm.stats.fmri_est.spmmat = {[outputdir '/SPM.mat']};
+matlabbatch{2}.spm.stats.fmri_est.spmmat = {[outputdir,filesep,'SPM.mat']};
 % Classical or Bayesian? Dunno...
 matlabbatch{2}.spm.stats.fmri_est.method.Classical = 1;
 %% Contrast manager (can be ignored in future, if you want to understand it better)
@@ -144,9 +175,32 @@ end
 matlabbatch{3}.spm.stats.con.spmmat = {[outputdir '/SPM.mat']};
 matlabbatch{3}.spm.stats.con.delete = 0;
 for ct = 1:length(contrst)
-    matlabbatch{3}.spm.stats.con.consess{ct}.tcon.name = contrstname{ct};
-    matlabbatch{3}.spm.stats.con.consess{ct}.tcon.convec = contrst{ct};
-    matlabbatch{3}.spm.stats.con.consess{ct}.tcon.sessrep = 'repl';
+    if size(contrst{ct},1)==1     
+        matlabbatch{3}.spm.stats.con.consess{ct}.tcon.name = contrstname{ct};
+        matlabbatch{3}.spm.stats.con.consess{ct}.tcon.sessrep = 'replsc'; % replicate and scale, only replicate 'repl';        
+        matlabbatch{3}.spm.stats.con.consess{ct}.tcon.convec = contrst{ct};
+    else
+        matlabbatch{3}.spm.stats.con.consess{ct}.fcon.name = contrstname{ct};
+        matlabbatch{3}.spm.stats.con.consess{ct}.fcon.weights = contrst{ct};
+        matlabbatch{3}.spm.stats.con.consess{ct}.fcon.sessrep = 'replsc'; % replicate and scale, only replicate 'repl';        
+    end
 end
 spm_jobman('initcfg');
+
+save([outputdir,filesep,'batchfile.mat'],'matlabbatch')
+
 spm_jobman('run',matlabbatch);
+
+if NEED_TO_SPLIT*DELETE_TEMP_FILES
+    fprintf('Deleting temp files and folders... ');
+    cd(tempfolder);
+    d=dir('*.nii');
+    for i=1:length(d)
+        delete(d(i).name);
+    end
+    cd(HOME);
+    rmdir(tempfolder);
+    fprintf('%i *.nii files deleted\n',length(d));    
+end
+
+

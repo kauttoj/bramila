@@ -10,7 +10,8 @@ function [clean_vol,r2] = bramila_regress(cfg)
 
 if ~isempty(cfg.reg)
     
-    X_nuisance = cfg.reg;
+    X_nuisance = cfg.reg;   
+        
     tsdata = single(cfg.vol);
     
     X_nuisance=removezeros(X_nuisance);
