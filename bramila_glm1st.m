@@ -3,6 +3,7 @@ function bramila_glm1st(file,outputdir)
 HOME = pwd;
 DELETE_TEMP_FILES = 1; % only useful if splitting
 NEED_TO_SPLIT = 0; % 1 for spm8
+ORTHOGONALIZE = 0;
 
 % load cfg and unpack parameters
 load(file,'cfg');
@@ -86,9 +87,10 @@ for sess = 1:nsess
         matlabbatch{1}.spm.stats.fmri_spec.sess(sess).cond(c).duration = durations{sess}{c};
         % no temporal or parametric modulations here
         matlabbatch{1}.spm.stats.fmri_spec.sess(sess).cond(c).tmod = 0;
+        matlabbatch{1}.spm.stats.fmri_spec.sess(sess).cond(c).orth = ORTHOGONALIZE;
         if cfg.pmod == 1
-            for p = 1:length(cfg.pmodname)
-                matlabbatch{1}.spm.stats.fmri_spec.sess(sess).cond(c).pmod(p).name = cfg.pmodname{p};
+            for p = 1:length(cfg.pmodnames{c})
+                matlabbatch{1}.spm.stats.fmri_spec.sess(sess).cond(c).pmod(p).name = cfg.pmodnames{c}{p};
                 matlabbatch{1}.spm.stats.fmri_spec.sess(sess).cond(c).pmod(p).param = cfg.pmodparam{sess}{c}{p};
                 matlabbatch{1}.spm.stats.fmri_spec.sess(sess).cond(c).pmod(p).poly = 1;
             end
